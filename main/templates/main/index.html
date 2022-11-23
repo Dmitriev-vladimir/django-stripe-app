@@ -1,0 +1,44 @@
+{% extends 'main/base.html' %}
+
+{% block title %}Основная страница{% endblock %}
+{% block content %}
+
+<h1 class="main__title">Список товаров</h1>
+<ul class="items">
+    {% csrf_token %}
+    {% for item in items %}
+        <li class="items__item">
+            <div class="item__main">
+                <p class="item__title">{{ item.name }}</p>
+                <p class="item__description">{{ item.description }}</p>
+            </div>
+            <div class="item__additional">
+                <p class="item__price">
+                    {{ item.price }}
+                </p>
+                <a href="/item/{{item.id}}/" class="btn btn-primary item__btn">Купить</a>
+                <button class="btn btn-primary btn-add item__btn" data-id="{{item.id}}">Добавить в корзину</button>
+            </div>
+        </li>
+    {% endfor %}
+</ul>
+{% endblock %}
+
+{% block script %}
+<script>
+    const addBtn = document.querySelectorAll('.btn-add');
+    const csrf_token = document.getElementsByTagName('input')[0].value
+
+    addBtn.forEach(btn => btn.addEventListener('click', () => {
+        const item_id = btn.getAttribute('data-id');
+        fetch('order/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': `${ csrf_token }`,
+                'Content-type': 'application/json'
+            },
+            body: JSON.stringify({id: item_id, operation: 'increase'}),
+        })
+    }))
+</script>
+{% endblock %}

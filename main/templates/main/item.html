@@ -1,0 +1,43 @@
+{% extends 'main/base.html' %}
+
+{% load static %}
+
+{% block link-script %}
+<meta http-equiv="Content-Security-Policy"
+      content="
+          default-src  'self' js.stripe.com/v3/;
+          style-src cdn.jsdelivr.net/;
+          script-src 'unsafe-inline' 'unsafe-eval' js.stripe.com/v3/;
+">
+<script src="https://js.stripe.com/v3/"></script>
+{% endblock %}
+
+{% block title %}Buy Item {{item.id}}{% endblock %}
+
+{% block content %}
+<h1
+        class="main__title"
+        data-id="{{item.id}}"
+        data-key="{{key}}"
+>{{item.name}}</h1>
+<p class="main__decription">{{item.description}}</p>
+<p class="main__price">{{item.price}}</p>
+<button class="btn btn-primary">Buy</button>
+{% endblock %}
+
+{% block script %}
+<script type="text/javascript">
+    const key = document.querySelector('.main__title').getAttribute('data-key');
+    const stripe = Stripe(key);
+    document.querySelector('.btn').addEventListener('click', () => {
+        const item_id = document.querySelector('.main__title').getAttribute('data-id');
+
+        fetch(`/buy/${item_id}/`)
+            .then(response => response.headers.get('session_id'))
+            .then(session_id => stripe.redirectToCheckout({'sessionId': session_id}))
+    });
+</script>
+{% endblock %}
+
+
+

@@ -1,0 +1,144 @@
+{% extends 'main/base.html' %}
+
+{% block title %}Корзина{% endblock %}
+
+{% block link-script %}
+<meta http-equiv="Content-Security-Policy"
+      content="
+          default-src  'self' js.stripe.com/v3/;
+          style-src cdn.jsdelivr.net/;
+          script-src 'unsafe-inline' 'unsafe-eval' js.stripe.com/v3/;
+">
+<script src="https://js.stripe.com/v3/"></script>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<h1 class="main__title">Корзина Items</h1>
+
+    {% if empty %}
+        <p>В корзине нет элементов Item</p>
+    {% else %}
+    <table class="order">
+        <thead>
+                <th>Наименование</th>
+                <th>Количество</th>
+                <th>Стоимость</th>
+            </tr>
+        </thead>
+        <tbody>
+             {% for order in order_list %}
+                <tr class="order__item">
+                    <td class="order__name">{{order.item.name}}</td>
+                    <td class="order__quantity">
+                        <span class="order__decrease" data-id="{{order.item.id}}">-</span>
+                        <span class="order__value">{{order.quantity}}</span>
+                        <span class="order__increase" data-id="{{order.item.id}}">+</span>
+                    </td>
+                    <td class="order__total">{{ order.amount }}</td>
+                </tr>
+            {% endfor %}
+                <tr class="order_total_amount">
+                    <td class="total">Total</td>
+                    <td></td>
+                    <td class="order__total total">{{ total }}</td>
+                </tr>
+        </tbody>
+    </table>
+
+    <div id="payment-btn"></div>
+
+    <form id="payment-form">
+        <div id="payment-element"></div>
+    </form>
+
+    <div class="order__buttons">
+        <button class="btn btn-primary btn-order">Оформить заказ</button>
+        <button class="btn btn-danger btn-clean">Очистить корзину</button>
+    </div>
+    {% endif %}
+
+{% endblock %}
+
+{% block script %}
+    {% if not empty  %}
+    <script>
+      const csrf_token = document.getElementsByTagName('input')[0].value
+      const increaseBtns = document.querySelectorAll('.order__increase');
+      const decreaseBtns = document.querySelectorAll('.order__decrease');
+      const cleanBtn = document.querySelector('.btn-clean');
+
+      cleanBtn.addEventListener('click', () => {
+          fetch('', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': `${ csrf_token }`,
+                    'Content-type': 'application/json'
+                },
+                body: JSON.stringify({id: 0, operation: 'none'}),
+            }).then(() => location.reload())
+      })
+
+      decreaseBtns.forEach(btn => btn.addEventListener('click', () => {
+          const item_id = btn.getAttribute('data-id');
+
+          fetch('', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': `${ csrf_token }`,
+                    'Content-type': 'application/json'
+                },
+                body: JSON.stringify({id: item_id, operation: 'decrease'}),
+            }).then(() => location.reload())
+      }))
+
+      increaseBtns.forEach(btn => btn.addEventListener('click', () => {
+          const item_id = btn.getAttribute('data-id');
+
+          fetch('', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': `${ csrf_token }`,
+                    'Content-type': 'application/json'
+                },
+                body: JSON.stringify({id: item_id, operation: 'increase'}),
+            }).then(() => location.reload())
+      }))
+
+      document.querySelector('.btn-order').addEventListener('click', () => {
+          fetch('buy/')
+              .then((response) => {
+                  const clientSecret = response.headers.get('data');
+                  const key = response.headers.get('key');
+
+                  console.log('clientSecret: ', clientSecret);
+                  console.log('PKey: ', key);
+
+                  const stripe = Stripe(key);
+
+                  const elements = stripe.elements({clientSecret: `${clientSecret}`});
+
+                  console.log('elements: ', elements)
+                  const paymentElement = elements.create('payment');
+                  paymentElement.mount('#payment-form')
+                  console.log('PaymentElement: ', paymentElement);
+
+                  document.querySelector('.order__buttons').innerHTML = '';
+
+                  const form = document.getElementById('payment-btn')
+                  const confirmBtn = document.createElement('button');
+                  confirmBtn.classList.add('btn', 'btn-primary', 'payment-btn');
+                  confirmBtn.textContent = 'Подтвердить оплату';
+                  form.append(confirmBtn);
+
+                  confirmBtn.addEventListener('click', () => {
+                      stripe.confirmPayment({elements, confirmParams: {
+                                return_url: 'http://localhost:8000/success'
+                            }
+                      })
+                  })
+              })
+      })
+    </script>
+    {% endif %}
+{% endblock %}
